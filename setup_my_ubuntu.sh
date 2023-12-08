@@ -82,12 +82,20 @@ else
   already_installed "Slack"
 fi
 
+# Install JQ
+if ! is_package_installed "jq"; then
+  installing "jq"
+  apt install jq -y
+else
+  already_installed "jq"
+fi
+
 # Install Zsh
 if ! is_package_installed "zsh"; then
   installing "Zsh"
   apt install zsh -y
 else
-  already_installed "Zsh is already installed" ""success""
+  already_installed "Zsh"
 fi
 
 if [ "$(getent passwd $USER | cut -d: -f7)" != "$(which zsh)" ]; then
@@ -128,10 +136,19 @@ if ! is_package_installed "docker-ce"; then
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
   apt-get update
   apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  success_installed "Docker"
+
+  installing "docker-compose"  
+  curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+  chmod +x /usr/local/bin/docker-compose
+  docker-compose --version
+  success_installed "docker-compose"
+  log_message "Running docker postinstall steps" "warning"
+
   groupadd docker
   usermod -aG docker "$USER"
   newgrp docker
-  success_installed "Docker"
+
 else
   already_installed "Docker"
 fi
