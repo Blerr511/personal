@@ -88,18 +88,6 @@ else
   already_installed "jq"
 fi
 
-command -v gcloud >/dev/null 2>&1 || {
-  installing "gcloud cli"
-  curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-456.0.0-linux-x86_64.tar.gz
-  tar -xf google-cloud-cli-456.0.0-linux-x86_64.tar.gz
-  rm google-cloud-cli-456.0.0-linux-x86_64.tar.gz
-  mv ./google-cloud-sdk ~/google-cloud-sdk
-
-  ~/google-cloud-sdk/install.sh
-
-  success_installed "gcloud cli"
-}
-
 # Install Zsh
 if ! is_package_installed "zsh"; then
   installing "Zsh"
@@ -242,6 +230,22 @@ if ! snap list | grep -q "k9s"; then
   success_installed "k9s via Snap"
 else
   already_installed "k9s via Snap"
+fi
+
+if ! command -v gcloud &>/dev/null; then
+  installing "gcloud cli"
+  curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-456.0.0-linux-x86_64.tar.gz
+
+  tar -xf google-cloud-cli-456.0.0-linux-x86_64.tar.gz
+
+  rm google-cloud-cli-456.0.0-linux-x86_64.tar.gz
+
+  ./google-cloud-sdk/install.sh
+
+  success_installed "gcloud cli"
+
+else
+  already_installed "gcloud cli"
 fi
 
 echo "Note: Please install Chrome and Visual Studio Code manually."
