@@ -61,7 +61,7 @@ log_message "Updating package repository" "warning"
 apt update
 
 # Install required packages
-required_packages=("apt-transport-https" "ca-certificates" "curl")
+required_packages=("apt-transport-https" "gnupg" "sudo" "ca-certificates" "curl")
 for package in "${required_packages[@]}"; do
   if ! is_package_installed "$package"; then
     installing "$package"
@@ -160,10 +160,26 @@ else
   already_installed "Git"
 fi
 
+if ! is_package_installed "go"; then
+
+  installing "go"
+
+  curl -O https://go.dev/dl/go1.21.5.linux-amd64.tar.gz
+
+  rm -rf /usr/local/go && tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
+
+  echo "export PATH=\$PATH:/usr/local/go/bin" >>~/.zshrc
+
+  success_installed "go"
+
+else
+  already_installed "go"
+fi
+
 # Install Node.js and npm
 if ! is_package_installed "nodejs"; then
   installing "Node.js and npm"
-  sudo mkdir -p /etc/apt/keyrings
+  mkdir -p /etc/apt/keyrings
   curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
   NODE_MAJOR=20
   echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
@@ -234,13 +250,16 @@ fi
 
 if ! command -v gcloud &>/dev/null; then
   installing "gcloud cli"
-  curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-456.0.0-linux-x86_64.tar.gz
 
-  tar -xf google-cloud-cli-456.0.0-linux-x86_64.tar.gz
+  curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
 
-  rm google-cloud-cli-456.0.0-linux-x86_64.tar.gz
+  echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
 
-  ./google-cloud-sdk/install.sh
+  apt-get update
+
+  apt-get install google-cloud-cli
+
+  apt-get install google-cloud-sdk-gke-gcloud-auth-plugin
 
   success_installed "gcloud cli"
 
