@@ -6,47 +6,45 @@ set -e
 COLOR_RED='\033[0;31m'
 COLOR_GREEN='\033[0;32m'
 COLOR_YELLOW='\033[0;33m'
-COLOR_RESET='\033[0m'  # Reset text color
+COLOR_RESET='\033[0m' # Reset text color
 
 # Function to log messages with colors
 log_message() {
   local log_message="$1"
-  local log_type="$2"  # success, warning, error
+  local log_type="$2" # success, warning, error
 
   case "$log_type" in
-    "success")
-      log_color="$COLOR_GREEN"
-      ;;
-    "warning")
-      log_color="$COLOR_YELLOW"
-      ;;
-    "error")
-      log_color="$COLOR_RED"
-      ;;
-    *)
-      log_color=""
-      ;;
+  "success")
+    log_color="$COLOR_GREEN"
+    ;;
+  "warning")
+    log_color="$COLOR_YELLOW"
+    ;;
+  "error")
+    log_color="$COLOR_RED"
+    ;;
+  *)
+    log_color=""
+    ;;
   esac
 
   echo -e "$(date +'%Y-%m-%d %H:%M:%S') - ${log_color}${log_message}${COLOR_RESET}"
 }
 
-installing(){
-	local pack="$1"
-	log_message "Installing '${pack}'" "warning"
+installing() {
+  local pack="$1"
+  log_message "Installing '${pack}'" "warning"
 }
 
-already_installed(){
-	local pack="$1"
-	log_message "Package '${pack}' already installed" "success"
+already_installed() {
+  local pack="$1"
+  log_message "Package '${pack}' already installed" "success"
 }
 
-success_installed(){
-	local pack="$1"
-	log_message "Package '${pack}' installed" "success"
+success_installed() {
+  local pack="$1"
+  log_message "Package '${pack}' installed" "success"
 }
-
-
 
 # Function to check if a package is installed
 is_package_installed() {
@@ -88,6 +86,17 @@ if ! is_package_installed "jq"; then
   apt install jq -y
 else
   already_installed "jq"
+fi
+
+# Install gcloud cli
+if ! is_package_installed "gcloud"; then
+  installing "gcloud cli"
+  curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-456.0.0-linux-x86_64.tar.gz
+  tar -xf google-cloud-cli-456.0.0-linux-x86_64.tar.gz
+  ./google-cloud-sdk/install.sh
+  success_installed "gcloud cli"
+else
+  already_installed "gcloud clid"
 fi
 
 # Install Zsh
@@ -133,12 +142,12 @@ if ! is_package_installed "docker-ce"; then
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   chmod a+r /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list >/dev/null
   apt-get update
   apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
   success_installed "Docker"
 
-  installing "docker-compose"  
+  installing "docker-compose"
   curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
   chmod +x /usr/local/bin/docker-compose
   docker-compose --version
@@ -179,12 +188,12 @@ fi
 # Install Node version manager (n)
 
 if ! npm list -g "n" &>/dev/null; then
-	installing "npm package: Node version manager (n)"
-	npm install -g n
-	n install 18
-	success_installed "Node version manager (n)"
+  installing "npm package: Node version manager (n)"
+  npm install -g n
+  n install 18
+  success_installed "Node version manager (n)"
 else
-already_installed "npm packageL n"
+  already_installed "npm packageL n"
 fi
 
 global_npm_packages=("yarn" "pnpm" "@bazel/bazelisk")
@@ -199,14 +208,12 @@ for package in "${global_npm_packages[@]}"; do
   fi
 done
 
-
-
 # Install Terraform
 if ! is_package_installed "terraform"; then
   installing "Terraform"
   installing "HashiCorp GPG key"
   wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
-  echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list > /dev/null
+  echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list >/dev/null
   wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
   apt-get update
   apt-get install -y terraformbazelisk
@@ -217,17 +224,15 @@ fi
 
 # Install Kubernetes
 if ! is_package_installed "kubectl"; then
-	installing "Kubernetes"
-	curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-	echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list > /dev/null
-	apt-get update
-	apt-get install -y kubectl
-	success_installed "Kubernetes"
+  installing "Kubernetes"
+  curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | tee /etc/apt/sources.list.d/kubernetes.list >/dev/null
+  apt-get update
+  apt-get install -y kubectl
+  success_installed "Kubernetes"
 else
   already_installed "Kubernetes"
 fi
-
-
 
 # Install k9s via Snap
 if ! snap list | grep -q "k9s"; then
