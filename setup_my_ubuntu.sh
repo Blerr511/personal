@@ -88,16 +88,17 @@ else
   already_installed "jq"
 fi
 
-# Install gcloud cli
-if ! is_package_installed "gcloud"; then
+command -v gcloud >/dev/null 2>&1 || {
   installing "gcloud cli"
   curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-456.0.0-linux-x86_64.tar.gz
   tar -xf google-cloud-cli-456.0.0-linux-x86_64.tar.gz
-  ./google-cloud-sdk/install.sh
+  rm google-cloud-cli-456.0.0-linux-x86_64.tar.gz
+  mv ./google-cloud-sdk ~/google-cloud-sdk
+
+  ~/google-cloud-sdk/install.sh
+
   success_installed "gcloud cli"
-else
-  already_installed "gcloud clid"
-fi
+}
 
 # Install Zsh
 if ! is_package_installed "zsh"; then
