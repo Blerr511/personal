@@ -164,11 +164,7 @@ if ! is_package_installed "go"; then
 
   installing "go"
 
-  curl -O https://go.dev/dl/go1.21.5.linux-amd64.tar.gz
-
-  rm -rf /usr/local/go && tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
-
-  echo "export PATH=\$PATH:/usr/local/go/bin" >>~/.zshrc
+  apt install -y golang-go
 
   success_installed "go"
 
@@ -221,7 +217,7 @@ if ! is_package_installed "terraform"; then
   echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list >/dev/null
   wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
   apt-get update
-  apt-get install -y terraformbazelisk
+  apt-get install -y terraform
   success_installed "Terraform"
 else
   already_installed "Terraform"
