@@ -182,6 +182,14 @@ if ! is_package_installed "nodejs"; then
   apt-get update
   apt-get install nodejs -y
   success_installed "Node.js and npm"
+
+  # make cache folder (if missing) and take ownership
+  mkdir -p /usr/local/n
+  chown -R $(whoami) /usr/local/n
+  # make sure the required folders exist (safe to execute even if they already exist)
+  mkdir -p /usr/local/bin /usr/local/lib /usr/local/include /usr/local/share
+  # take ownership of Node.js install destination folders
+  chown -R $(whoami) /usr/local/bin /usr/local/lib /usr/local/include /usr/local/share
 else
   already_installed "Node.js and npm"
 fi
