@@ -8,7 +8,7 @@
     - name: get the username running the deploy
       become: false
       local_action: command whoami
-      register: username_on_the_host.stdout
+      register: username_on_the_host
 
     - debug: var=username_on_the_host.stdout
     - name: Update apt cache
@@ -28,6 +28,7 @@
           - zsh
           - guake
           - git
+          - make
           - golang-go
         state: present
       register: apt_packages
@@ -60,6 +61,13 @@
       template:
         src: templates/.zshrc.j2
         dest: "~/.zshrc"
+        mode: '0644'
+
+    - name: Copy .zshrc.aliases template to user's home directory
+      become: false
+      template:
+        src: templates/.zsh_aliases.j2
+        dest: "~/.zsh_aliases"
         mode: '0644'
   
     - name: Install Oh My Zsh
@@ -120,6 +128,32 @@
         - docker.service
         - containerd.service
 
+    - name: Clone the k9s repository
+      git:
+        repo: "https://github.com/derailed/k9s.git"
+        dest: "/usr/local/src/k9s"
+        update: yes
+
+    - name: Build k9s from source
+      shell: |
+        cd /usr/local/src/k9s
+        make build
+      args:
+        chdir: /usr/local/src/k9s
+        creates: /usr/local/src/k9s/execs/k9s
+
+    - name: Move k9s executable to /usr/local/bin
+      copy:
+        src: "/usr/local/src/k9s/execs/k9s"
+        dest: "/usr/local/bin/k9s"
+        mode: '0755'
+
+    - name: Set the terminal to 256 colors
+      lineinfile:
+        path: "/etc/profile.d/k9s.sh"
+        line: "export TERM=xterm-256color"
+        create: yes
+  
     # Node.js Installation
     - name: Install Node.js LTS via NodeSource script
       shell: curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -

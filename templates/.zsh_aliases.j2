@@ -1,0 +1,32 @@
+alias bazel-standalone=/home/lyov/Documents/projects/cell-annotation-platform/sandbox/bazel-standalone.sh
+alias bazel-standalone-watch=/home/lyov/Documents/projects/cell-annotation-platform/sandbox/watchdog.sh
+alias bazel-standalone-nextjs=/home/lyov/Documents/projects/cell-annotation-platform/sandbox/nextjs.sh
+
+# bazel-standalone run //sandbox/environment:dc_services -- up --detach
+# bazel-standalone-watch --package authentication/firebase --target emulator
+# bazel-standalone-watch --package server/data-backend --target server --delay 1
+
+alias @cap="~/Documents/projects/cell-annotation-platform"
+alias @cap/services="bazel-standalone run //sandbox/environment:dc_services -- "
+alias @cap/firebase="bazel-standalone-watch --package authentication/firebase --target emulator"
+alias @cap/server="bazel-standalone-watch --package server/data-backend --target server --delay 1"
+alias @cap/upload-watchdog="bazel-standalone-watch --package server/services/upload-watchdog --target watch --delay 1"
+alias @cap/gcloud="bazel-standalone run //sandbox/environment:gcloud"
+alias @cap/web-client="bazel-standalone-nextjs --package client/web-client --command dev"
+alias @cap/parser="bazel-standalone-watch --package server/parsers/AnnData --ext py --target parser"
+alias @cap/updater="bazel-standalone-watch --package server/parsers/AnnData --ext py --target updater"
+alias @cap/email-service="bazel-standalone-watch --package server/services/email-service --target watch"
+alias @cap/cli:upload_local="bazel-standalone run //client/cli/uploader:upload_local"
+# alias @cap/clear-all="for i in `find . -type d -name "*node_modules*" -print -maxdepth 4 -mindepth 2`; do rm -rf $i; done && rm -rf .bazel"
+
+alias @cap/embeddings:listener="bazel-standalone-watch --package server/services/embeddings --target listener"
+alias @cap/embeddings:service="bazel-standalone-watch --package server/services/embeddings --target service"
+
+alias @cap/server:integration_test="bazel-standalone-watch --package server/data-backend --target integration_test --delay 2"
+alias @cap/server:migration_apply="bazel-standalone run //server/data-backend:migration_apply"
+alias @cap/server:migration_undo="bazel-standalone run //server/data-backend:migration_undo"
+alias @cap/server:migration_create="bazel-standalone run //server/data-backend:migration_create"
+alias @cap/server:migration_generate="bazel-standalone run //server/data-backend:migration_generate"
+
+alias @fhh="~/Documents/projects/fhealth/pollin-backend"
+alias @fhh/infra="~/Documents/projects/fhealth/infra"
