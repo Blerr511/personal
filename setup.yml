@@ -8,9 +8,9 @@
     - name: get the username running the deploy
       become: false
       local_action: command whoami
-      register: username_on_the_host
+      register: username_on_the_host.stdout
 
-    - debug: var=username_on_the_host
+    - debug: var=username_on_the_host.stdout
     - name: Update apt cache
       apt:
         update_cache: yes
@@ -46,7 +46,7 @@
 
     - name: Add user to zsh shell if not default
       user:
-        name: "{{ username_on_the_host }}"
+        name: "{{ username_on_the_host.stdout }}"
         shell: /usr/bin/zsh
       when: ansible_env.SHELL != '/usr/bin/zsh'
 
@@ -86,7 +86,7 @@
     - name: Print architecture variables
       become: false
       ansible.builtin.debug:
-        msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}\n User: {{ username_on_the_host }}"
+        msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}\n User: {{ username_on_the_host.stdout }}"
 
     - name: Install Docker and related packages
       ansible.builtin.apt:
@@ -107,7 +107,7 @@
 
     - name: Add user to Docker group
       ansible.builtin.user:
-        name: "{{ username_on_the_host }}"
+        name: "{{ username_on_the_host.stdout }}"
         groups: docker
         append: true
 
@@ -144,16 +144,16 @@
       file:
         path: /usr/local/n
         state: directory
-        owner: "{{ username_on_the_host }}"
-        group: "{{ username_on_the_host }}"
+        owner: "{{ username_on_the_host.stdout }}"
+        group: "{{ username_on_the_host.stdout }}"
         mode: '0755'
 
     - name: Ensure Node.js directories are owned by user
       file:
         path: "{{ item }}"
         state: directory
-        owner: "{{ username_on_the_host }}"
-        group: "{{ username_on_the_host }}"
+        owner: "{{ username_on_the_host.stdout }}"
+        group: "{{ username_on_the_host.stdout }}"
         mode: '0755'
       loop:
         - /usr/local/bin
