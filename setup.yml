@@ -1,0 +1,139 @@
+---
+- name: Setup Ubuntu Environment
+  hosts: localhost
+  become: true
+  tasks:
+
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install required APT packages
+      apt:
+        name:
+          - apt-transport-https
+          - gnupg
+          - sudo
+          - ca-certificates
+          - curl
+          - jq
+          - zsh
+          - guake
+          - git
+          - golang-go
+        state: present
+
+    - name: Install Snap packages
+      snap:
+        name: slack
+        classic: yes
+        state: present
+
+    - name: Install Docker dependencies
+      apt:
+        name: software-properties-common
+        state: present
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker packages
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Add user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Install Node.js 20.x
+      get_url:
+        url: https://deb.nodesource.com/setup_20.x
+        dest: /tmp/node_setup.sh
+        mode: '0755'
+
+    - name: Run Node.js setup script
+      command: /tmp/node_setup.sh
+
+    - name: Install Node.js and npm
+      apt:
+        name: nodejs
+        state: present
+
+    - name: Install global npm packages
+      npm:
+        name: "{{ item }}"
+        global: yes
+      loop:
+        - n
+        - yarn
+        - pnpm
+        - "@bazel/bazelisk"
+
+    - name: Install Terraform
+      apt_key:
+        url: https://apt.releases.hashicorp.com/gpg
+        state: present
+
+    - name: Add HashiCorp repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+        state: present
+
+    - name: Install Terraform package
+      apt:
+        name: terraform
+        state: present
+
+    - name: Install Kubernetes tools
+      apt_key:
+        url: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
+        state: present
+
+    - name: Add Kubernetes repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"
+        state: present
+
+    - name: Install kubectl
+      apt:
+        name: kubectl
+        state: present
+
+    - name: Install k9s via Snap
+      snap:
+        name: k9s
+        devmode: yes
+        state: present
+
+    - name: Install Google Cloud SDK
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+
+    - name: Add Google Cloud SDK repository
+      apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main"
+        state: present
+
+    - name: Install Google Cloud SDK packages
+      apt:
+        name:
+          - google-cloud-cli
+          - google-cloud-sdk-gke-gcloud-auth-plugin
+        state: present
+
