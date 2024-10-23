@@ -2,11 +2,14 @@
 - name: Setup Ubuntu Environment
   hosts: localhost
   become: true
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
   tasks:
 
     - name: Update apt cache
       apt:
         update_cache: yes
+      changed_when: false
 
     - name: Install required APT packages
       apt:
@@ -22,54 +25,108 @@
           - git
           - golang-go
         state: present
+      register: apt_packages
+      retries: 3
+      delay: 5
+      until: apt_packages is succeeded
 
     - name: Install Snap packages
-      snap:
-        name: slack
-        classic: yes
+      community.general.snap:
+        name: "{{ item.name }}"
+        classic: "{{ item.classic | default(false) }}"
         state: present
+      loop:
+        - { name: slack, classic: true }
+      register: snap_packages
 
-    - name: Install Docker dependencies
-      apt:
-        name: software-properties-common
-        state: present
-
-    - name: Add Docker GPG key
-      apt_key:
-        url: https://download.docker.com/linux/ubuntu/gpg
-        state: present
-
-    - name: Add Docker repository
-      apt_repository:
-        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
-        state: present
-
-    - name: Install Docker packages
-      apt:
-        name:
-          - docker-ce
-          - docker-ce-cli
-          - containerd.io
-          - docker-buildx-plugin
-          - docker-compose-plugin
-        state: present
-
-    - name: Add user to docker group
+    - name: Add user to zsh shell if not default
       user:
         name: "{{ ansible_user }}"
-        groups: docker
-        append: yes
+        shell: /usr/bin/zsh
+      when: ansible_env.SHELL != '/usr/bin/zsh'
 
-    - name: Install Node.js 20.x
-      get_url:
-        url: https://deb.nodesource.com/setup_20.x
-        dest: /tmp/node_setup.sh
+    - name: Install Oh My Zsh if not installed
+      stat:
+        path: "{{ ansible_env.HOME }}/.oh-my-zsh"
+      register: oh_my_zsh_install
+
+    - name: Copy .zshrc template to user's home directory
+      become: false
+      template:
+        src: templates/.zshrc.j2
+        dest: "~/.zshrc"
+        mode: '0644'
+  
+    - name: Install Oh My Zsh
+      become: false
+      shell: |
+        sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+      args:
+        executable: /bin/bash
+      when: not oh_my_zsh_install.stat.exists
+
+
+    - name: Install k9s via Snap (using command module)
+      become: true
+      command: snap install k9s --devmode
+      args:
+        creates: /snap/bin/k9s
+
+    - name: Create directory for Docker's GPG key
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
         mode: '0755'
 
-    - name: Run Node.js setup script
-      command: /tmp/node_setup.sh
+    - name: Print architecture variables
+      ansible.builtin.debug:
+        msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}\n User: {{ ansible_user_id }}"
 
-    - name: Install Node.js and npm
+    - name: Install Docker and related packages
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: true
+      loop:
+        - docker-ce
+        - docker-ce-cli
+        - containerd.io
+        - docker-buildx-plugin
+        - docker-compose-plugin
+
+    - name: Add Docker group
+      ansible.builtin.group:
+        name: docker
+        state: present
+
+    - name: Add user to Docker group
+      ansible.builtin.user:
+        name: "{{ ansible_user_id }}"
+        groups: docker
+        append: true
+
+    - name: Enable and start Docker services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - docker.service
+        - containerd.service
+
+    # Node.js Installation
+    - name: Install the gpg key for nodejs LTS
+      apt_key:
+        url: "https://deb.nodesource.com/gpgkey/nodesource.gpg.key"
+        state: present
+    
+    - name: Install the nodejs LTS repos
+      apt_repository:
+        repo: "deb https://deb.nodesource.com/node_20.x {{ ansible_distribution_release }} main"
+        state: present
+        update_cache: yes
+
+    - name: Install the nodejs
       apt:
         name: nodejs
         state: present
@@ -78,57 +135,84 @@
       npm:
         name: "{{ item }}"
         global: yes
+        executable: /usr/bin/npm
       loop:
         - n
         - yarn
         - pnpm
         - "@bazel/bazelisk"
 
-    - name: Install Terraform
+    - name: Ensure npm cache directory exists
+      file:
+        path: /usr/local/n
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Ensure Node.js directories are owned by user
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+      loop:
+        - /usr/local/bin
+        - /usr/local/lib
+        - /usr/local/include
+        - /usr/local/share
+
+    # Terraform Installation
+    - name: Add HashiCorp GPG key
       apt_key:
         url: https://apt.releases.hashicorp.com/gpg
         state: present
 
     - name: Add HashiCorp repository
       apt_repository:
-        repo: "deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+        repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+        filename: hashicorp
         state: present
+      notify: Update apt cache
 
-    - name: Install Terraform package
+    - name: Install Terraform
       apt:
         name: terraform
         state: present
 
-    - name: Install Kubernetes tools
+    # Kubernetes Installation
+    - name: Add Kubernetes GPG key
       apt_key:
-        url: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        keyring: /usr/share/keyrings/kubernetes-archive-keyring.gpg
         state: present
 
     - name: Add Kubernetes repository
       apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"
+        repo: "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main"
+        filename: kubernetes
         state: present
+      notify: Update apt cache
 
     - name: Install kubectl
       apt:
         name: kubectl
         state: present
 
-    - name: Install k9s via Snap
-      snap:
-        name: k9s
-        devmode: yes
-        state: present
-
-    - name: Install Google Cloud SDK
+    # Google Cloud SDK Installation
+    - name: Add Google Cloud SDK GPG key
       apt_key:
         url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        keyring: /usr/share/keyrings/cloud.google.gpg
         state: present
 
     - name: Add Google Cloud SDK repository
       apt_repository:
         repo: "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main"
+        filename: google-cloud-sdk
         state: present
+      notify: Update apt cache
 
     - name: Install Google Cloud SDK packages
       apt:
@@ -137,3 +221,7 @@
           - google-cloud-sdk-gke-gcloud-auth-plugin
         state: present
 
+  handlers:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
