@@ -30,6 +30,7 @@
           - git
           - make
           - golang-go
+          - openjdk-8-jre
         state: present
       register: apt_packages
       retries: 3
