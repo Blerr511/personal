@@ -5,7 +5,12 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
+    - name: get the username running the deploy
+      become: false
+      local_action: command whoami
+      register: username_on_the_host
 
+    - debug: var=username_on_the_host
     - name: Update apt cache
       apt:
         update_cache: yes
@@ -41,7 +46,7 @@
 
     - name: Add user to zsh shell if not default
       user:
-        name: "{{ ansible_user }}"
+        name: "{{ username_on_the_host }}"
         shell: /usr/bin/zsh
       when: ansible_env.SHELL != '/usr/bin/zsh'
 
@@ -79,8 +84,9 @@
         mode: '0755'
 
     - name: Print architecture variables
+      become: false
       ansible.builtin.debug:
-        msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}\n User: {{ ansible_user_id }}"
+        msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}\n User: {{ username_on_the_host }}"
 
     - name: Install Docker and related packages
       ansible.builtin.apt:
@@ -101,7 +107,7 @@
 
     - name: Add user to Docker group
       ansible.builtin.user:
-        name: "{{ ansible_user_id }}"
+        name: "{{ username_on_the_host }}"
         groups: docker
         append: true
 
@@ -115,18 +121,10 @@
         - containerd.service
 
     # Node.js Installation
-    - name: Install the gpg key for nodejs LTS
-      apt_key:
-        url: "https://deb.nodesource.com/gpgkey/nodesource.gpg.key"
-        state: present
-    
-    - name: Install the nodejs LTS repos
-      apt_repository:
-        repo: "deb https://deb.nodesource.com/node_20.x {{ ansible_distribution_release }} main"
-        state: present
-        update_cache: yes
+    - name: Install Node.js LTS via NodeSource script
+      shell: curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
 
-    - name: Install the nodejs
+    - name: Install Node.js
       apt:
         name: nodejs
         state: present
@@ -146,16 +144,16 @@
       file:
         path: /usr/local/n
         state: directory
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        owner: "{{ username_on_the_host }}"
+        group: "{{ username_on_the_host }}"
         mode: '0755'
 
     - name: Ensure Node.js directories are owned by user
       file:
         path: "{{ item }}"
         state: directory
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        owner: "{{ username_on_the_host }}"
+        group: "{{ username_on_the_host }}"
         mode: '0755'
       loop:
         - /usr/local/bin
