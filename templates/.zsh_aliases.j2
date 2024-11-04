@@ -1,6 +1,6 @@
-alias bazel-standalone=/home/lyov/Documents/projects/cell-annotation-platform/sandbox/bazel-standalone.sh
-alias bazel-standalone-watch=/home/lyov/Documents/projects/cell-annotation-platform/sandbox/watchdog.sh
-alias bazel-standalone-nextjs=/home/lyov/Documents/projects/cell-annotation-platform/sandbox/nextjs.sh
+alias bazel-standalone=/home/{{username_on_the_host.stdout}}/Documents/projects/cell-annotation-platform/sandbox/bazel-standalone.sh
+alias bazel-standalone-watch=/home/{{username_on_the_host.stdout}}/Documents/projects/cell-annotation-platform/sandbox/watchdog.sh
+alias bazel-standalone-nextjs=/home/{{username_on_the_host.stdout}}/Documents/projects/cell-annotation-platform/sandbox/nextjs.sh
 
 # bazel-standalone run //sandbox/environment:dc_services -- up --detach
 # bazel-standalone-watch --package authentication/firebase --target emulator
