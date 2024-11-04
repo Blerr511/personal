@@ -31,6 +31,7 @@
           - make
           - golang-go
           - openjdk-8-jre
+          - gpg
         state: present
       register: apt_packages
       retries: 3
@@ -39,8 +40,8 @@
 
     - name: Install Snap packages
       community.general.snap:
-        name: "{{ item.name }}"
-        classic: "{{ item.classic | default(false) }}"
+        name: '{{ item.name }}'
+        classic: '{{ item.classic | default(false) }}'
         state: present
       loop:
         - { name: slack, classic: true }
@@ -48,29 +49,29 @@
 
     - name: Add user to zsh shell if not default
       user:
-        name: "{{ username_on_the_host.stdout }}"
+        name: '{{ username_on_the_host.stdout }}'
         shell: /usr/bin/zsh
       when: ansible_env.SHELL != '/usr/bin/zsh'
 
     - name: Install Oh My Zsh if not installed
       stat:
-        path: "{{ ansible_env.HOME }}/.oh-my-zsh"
+        path: '/home/{{ username_on_the_host.stdout }}/.oh-my-zsh'
       register: oh_my_zsh_install
 
     - name: Copy .zshrc template to user's home directory
       become: false
       template:
         src: templates/.zshrc.j2
-        dest: "~/.zshrc"
+        dest: '~/.zshrc'
         mode: '0644'
 
     - name: Copy .zshrc.aliases template to user's home directory
       become: false
       template:
         src: templates/.zsh_aliases.j2
-        dest: "~/.zsh_aliases"
+        dest: '~/.zsh_aliases'
         mode: '0644'
-  
+
     - name: Install Oh My Zsh
       become: false
       shell: |
@@ -79,6 +80,23 @@
         executable: /bin/bash
       when: not oh_my_zsh_install.stat.exists
 
+
+    - name: Copy Guake settings template to temporary configuration file
+      template:
+        src: templates/guake.cfg.j2
+        dest: "/tmp/myprefs.cfg"
+        mode: '0644'
+
+    - name: Restore Guake preferences from the configuration file
+      shell: "guake --restore-preferences=/tmp/myprefs.cfg"
+      become: false
+      args:
+        executable: /bin/bash
+
+    - name: Remove temporary Guake configuration file
+      file:
+        path: "/tmp/myprefs.cfg"
+        state: absent
 
     - name: Install k9s via Snap (using command module)
       become: true
@@ -97,9 +115,24 @@
       ansible.builtin.debug:
         msg: "Architecture: {{ ansible_architecture }}, Codename: {{ ansible_lsb.codename }}\n User: {{ username_on_the_host.stdout }}"
 
+    - name: Add Docker’s official GPG key if not already added
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Set up Docker repository if not already set
+      apt_repository:
+        repo: 'deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable'
+        state: present
+        filename: docker
+
+    - name: Update apt package index
+      apt:
+        update_cache: yes
+
     - name: Install Docker and related packages
       ansible.builtin.apt:
-        name: "{{ item }}"
+        name: '{{ item }}'
         state: present
         update_cache: true
       loop:
@@ -116,23 +149,45 @@
 
     - name: Add user to Docker group
       ansible.builtin.user:
-        name: "{{ username_on_the_host.stdout }}"
+        name: '{{ username_on_the_host.stdout }}'
         groups: docker
         append: true
 
     - name: Enable and start Docker services
       ansible.builtin.systemd:
-        name: "{{ item }}"
+        name: '{{ item }}'
         enabled: true
         state: started
       loop:
         - docker.service
         - containerd.service
 
+
+    # Kubernetes Installation
+    - name: Download k8s apt repo key
+      become: true
+      shell:
+        cmd: curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.31/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Add Kubernetes APT repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.31/deb/ /"
+        state: present
+        filename: kubernetes
+
+    - name: Update apt package index
+      apt:
+        update_cache: yes
+
+    - name: Install kubectl
+      apt:
+        name: kubectl
+        state: present
+
     - name: Clone the k9s repository
       git:
-        repo: "https://github.com/derailed/k9s.git"
-        dest: "/usr/local/src/k9s"
+        repo: 'https://github.com/derailed/k9s.git'
+        dest: '/usr/local/src/k9s'
         update: yes
 
     - name: Build k9s from source
@@ -145,16 +200,16 @@
 
     - name: Move k9s executable to /usr/local/bin
       copy:
-        src: "/usr/local/src/k9s/execs/k9s"
-        dest: "/usr/local/bin/k9s"
+        src: '/usr/local/src/k9s/execs/k9s'
+        dest: '/usr/local/bin/k9s'
         mode: '0755'
 
     - name: Set the terminal to 256 colors
       lineinfile:
-        path: "/etc/profile.d/k9s.sh"
-        line: "export TERM=xterm-256color"
+        path: '/etc/profile.d/k9s.sh'
+        line: 'export TERM=xterm-256color'
         create: yes
-  
+
     # Node.js Installation
     - name: Install Node.js LTS via NodeSource script
       shell: curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
@@ -166,29 +221,29 @@
 
     - name: Install global npm packages
       npm:
-        name: "{{ item }}"
+        name: '{{ item }}'
         global: yes
         executable: /usr/bin/npm
       loop:
         - n
         - yarn
         - pnpm
-        - "@bazel/bazelisk"
+        - '@bazel/bazelisk'
 
     - name: Ensure npm cache directory exists
       file:
         path: /usr/local/n
         state: directory
-        owner: "{{ username_on_the_host.stdout }}"
-        group: "{{ username_on_the_host.stdout }}"
+        owner: '{{ username_on_the_host.stdout }}'
+        group: '{{ username_on_the_host.stdout }}'
         mode: '0755'
 
     - name: Ensure Node.js directories are owned by user
       file:
-        path: "{{ item }}"
+        path: '{{ item }}'
         state: directory
-        owner: "{{ username_on_the_host.stdout }}"
-        group: "{{ username_on_the_host.stdout }}"
+        owner: '{{ username_on_the_host.stdout }}'
+        group: '{{ username_on_the_host.stdout }}'
         mode: '0755'
       loop:
         - /usr/local/bin
@@ -202,36 +257,21 @@
         url: https://apt.releases.hashicorp.com/gpg
         state: present
 
-    - name: Add HashiCorp repository
+    - name: Add HashiCorp Terraform repository
       apt_repository:
-        repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
-        filename: hashicorp
+        repo: "deb [arch=amd64] https://apt.releases.hashicorp.com {{ ansible_lsb.codename }} main"
         state: present
-      notify: Update apt cache
+        filename: "hashicorp"
+
+    - name: Update apt package index
+      apt:
+        update_cache: yes
 
     - name: Install Terraform
       apt:
         name: terraform
         state: present
 
-    # Kubernetes Installation
-    - name: Add Kubernetes GPG key
-      apt_key:
-        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
-        keyring: /usr/share/keyrings/kubernetes-archive-keyring.gpg
-        state: present
-
-    - name: Add Kubernetes repository
-      apt_repository:
-        repo: "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main"
-        filename: kubernetes
-        state: present
-      notify: Update apt cache
-
-    - name: Install kubectl
-      apt:
-        name: kubectl
-        state: present
 
     # Google Cloud SDK Installation
     - name: Add Google Cloud SDK GPG key
@@ -242,7 +282,7 @@
 
     - name: Add Google Cloud SDK repository
       apt_repository:
-        repo: "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main"
+        repo: 'deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main'
         filename: google-cloud-sdk
         state: present
       notify: Update apt cache
